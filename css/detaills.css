@@ -1,0 +1,233 @@
+/* Estilo base */
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 1.25rem; /* 20px */
+  background-color: #1e1e1e;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cabeçalho */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8rem; /* 128px */
+  background-color: #1e1e1e;
+  border-bottom: 0.125rem solid #6c6b34; /* 2px */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.collumn {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+input, select {
+  padding: 0.625rem; /* 10px */
+  margin: 0.625rem; /* 10px */
+  border-radius: 0.3125rem; /* 5px */
+  border: none;
+}
+
+#logo {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* 12px */
+  margin: auto
+}
+
+#shopping-cart {
+  cursor: pointer;
+  margin: auto;
+}
+
+#shopping-cart img {
+  width: 4.375rem; /* 70px */
+  height: 4.375rem; /* 70px */
+  margin-right: 0.75rem; /* 12px */
+  object-fit: cover;
+  border-color: #6c6b34 solid 0.125rem; /* 2px */
+}
+
+#library {
+  cursor: pointer;
+  margin: auto;
+}
+
+#library img {
+  width: 4.375rem; /* 70px */
+  height: 4.375rem; /* 70px */
+  margin-right: 0.75rem; /* 12px */
+  object-fit: cover;
+  border-color: #6c6b34 solid 0.125rem; /* 2px */
+}
+
+#user img {
+  width: 6.25rem; /* 100px */
+  height: 6.25rem; /* 100px */
+  margin-right: 0.75rem; /* 12px */
+  border-radius: 50%;
+  object-fit: cover;
+  border-color: #6c6b34 solid 0.125rem; /* 2px */
+}
+
+#search {
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+  border-bottom: 0.0625rem solid #555; /* 1px */
+  max-width: 18.75rem; /* 300px */
+  margin-top: 1.875rem; /* 30px */
+  margin: auto;
+  margin-right: 7.5rem; /* 120px */
+}
+
+#search-img {
+  width: 1.6875rem; /* 27px */
+  height: 1.6875rem; /* 27px */
+  margin-right: 0.75rem; /* 12px */
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+#search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  color: #ddd;
+  font-size: 1.1rem;
+}
+
+#search input::placeholder {
+  color: #aaa;
+}
+
+main {
+  padding-top: 9rem; /* 144px (espaço suficiente para o header fixo) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 9rem); /* altura restante */
+}
+
+/* Container principal */
+.game-details-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 3.75rem; /* 60px */
+    max-width: 87.5rem; /* 1400px */
+    flex: 1; /* isso faz ocupar o espaço vertical restante */
+    flex-wrap: wrap;
+}
+
+/* Lado esquerdo */
+.left-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  margin-top: 0;
+  padding-top: 0;
+  text-align: center;
+}
+  
+.left-side h1 {
+  font-size: 4rem; /* 40px */
+  margin-top: 0;
+}
+
+.left-side img {
+  width: 70%;
+  height: 40rem; /* 400px */
+  object-fit: cover;
+  border-radius: 0.75rem; /* 12px */
+}
+
+/* Lado direito */
+.right-side {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2rem; /* 20px */
+    min-width: 18.75rem; /* 300px */
+    padding: 1.25rem; /* 20px */
+}
+  
+  .right-side p {
+    font-size: 2rem; /* 20px */
+    color: #ccc;
+    margin: 0;
+}
+  
+  #gamePrice {
+    font-size: 2rem; /* 22.4px */
+    color: #2e8b57;
+    font-weight: bold;
+}  
+
+/* Botão */
+#addCart {
+    align-self: flex-start;
+    background-color: #6c6b34;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem; /* 12px 24px */
+    border-radius: 0.5rem; /* 8px */
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}  
+
+#addCart:hover {
+  background-color: #3e3d1a;
+}
+
+/* Mensagem flutuante */
+.floating-message {
+  position: fixed;
+  top: 1.25rem; /* 20px */
+  right: 1.25rem; /* 20px */
+  background-color: #4CAF50;
+  color: white;
+  padding: 0.625rem 0.9375rem; /* 10px 15px */
+  border-radius: 0.3125rem; /* 5px */
+  z-index: 1000;
+  box-shadow: 0 0 0.625rem #000; /* 10px */
+}
+
+/* Responsividade */
+@media (max-width: 48rem) { /* 768px */
+    .game-details-container {
+      flex-direction: column;
+      height: auto;
+      padding: 1.875rem 1.25rem; /* 30px 20px */
+    }
+  
+    .left-side, .right-side {
+      padding: 0;
+      width: 100%;
+      max-width: 90%;
+    }
+  
+    .left-side h1 {
+      font-size: 1.25rem; /* 20px */
+    }
+  
+    #addCart {
+      width: 100%;
+      text-align: center;
+    }
+  }

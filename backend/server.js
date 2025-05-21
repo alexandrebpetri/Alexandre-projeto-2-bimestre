@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const query = `
 SELECT g.id as id, 

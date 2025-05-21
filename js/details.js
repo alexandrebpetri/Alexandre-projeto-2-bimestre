@@ -1,10 +1,10 @@
-import { loadCSV, games } from "../data/data.js";
+import { loadGamesFromAPI, games } from "../data/data.js";
 
 function loadDetails() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = parseInt(urlParams.get('id'), 10);
 
-  loadCSV().then(() => {
+  loadGamesFromAPI().then(() => {
     const game = games.find(j => j.id === id);
     if (game) {
       gamesContainer.innerHTML = `

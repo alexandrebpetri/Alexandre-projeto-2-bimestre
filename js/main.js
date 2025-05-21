@@ -1,4 +1,4 @@
-import { loadCSV, games } from '../data/data.js';
+import { loadGamesFromAPI, games } from '../data/data.js';
 
 function loadGames(list = games) {
   const container = document.getElementById("lista-jogos");
@@ -20,26 +20,22 @@ function loadGames(list = games) {
   }
 }
 
-
 function searchGames(text) {
-    const term = text.toLowerCase();
-    const filtered = games.filter(game => game.name.toLowerCase().includes(term));
-    loadGames(filtered);  
+  const term = text.toLowerCase();
+  const filtered = games.filter(game => game.name.toLowerCase().includes(term));
+  loadGames(filtered);
 }
 
-  export function seeGame(id) {
-    window.location.href = `details.html?id=${id}`;
-  }
-  
-  // Deixar visível globalmente:
-  window.seeGame = seeGame;
-  window.searchGames = searchGames;
+export function seeGame(id) {
+  window.location.href = `details.html?id=${id}`;
+}
 
-  
-  // Primeiro carregar o CSV, depois montar a tela
-  window.onload = () => {
-    loadCSV().then(() => {
-      loadGames();
-    });
-  };
-  
+window.seeGame = seeGame;
+window.searchGames = searchGames;
+
+// Carrega os jogos da API e monta os cards
+window.onload = () => {
+  loadGamesFromAPI().then(() => {
+    loadGames();
+  });
+};

@@ -519,7 +519,7 @@ function formatGameData(game) {
     id: game.id,
     name: game.name,
     image: game.image_games_image_idToimage && game.image_games_image_idToimage.data
-      ? `data:image/jpeg;base64,${game.image_games_image_idToimage.data.toString('base64')}`
+      ? `data:image/jpeg;base64,${Buffer.from(game.image_games_image_idToimage.data).toString('base64')}`
       : null,
     description: game.description,
     price: game.price,

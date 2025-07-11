@@ -231,3 +231,14 @@ button:hover {
     align-items: center;
   }
 }
+
+.crud-tab form {
+  margin: 20px 0;
+}
+
+.crud-tab input {
+  display: block;
+  margin: 8px auto;
+  width: 100%;
+  max-width: 400px;
+}

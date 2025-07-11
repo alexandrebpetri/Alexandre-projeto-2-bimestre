@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model category {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique @db.VarChar(50)
+  game_category game_category[]
+}
+
+model developer {
+  id    Int     @id @default(autoincrement())
+  name  String  @db.VarChar(255)
+  games games[]
+}
+
+model game_category {
+  game_id     Int
+  category_id Int
+  category    category @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  games       games    @relation(fields: [game_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([game_id, category_id])
+}
+
+model games {
+  id                          Int             @id @default(autoincrement())
+  name                        String          @db.VarChar(255)
+  description                 String?
+  price                       Decimal?        @db.Decimal(10, 2)
+  release_date                DateTime?       @db.Date
+  developer_id                Int?
+  image_id                    Int?            @unique
+  game_category               game_category[]
+  developer                   developer?      @relation(fields: [developer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  image_games_image_idToimage image?          @relation("games_image_idToimage", fields: [image_id], references: [id])
+  image_image_game_idTogames  image?          @relation("image_game_idTogames")
+}
+
+model image {
+  id                          Int    @id @default(autoincrement())
+  data                        Bytes
+  game_id                     Int?   @unique
+  games_games_image_idToimage games? @relation("games_image_idToimage")
+  games_image_game_idTogames  games? @relation("image_game_idTogames", fields: [game_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_game")
+}

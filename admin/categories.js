@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modal = document.getElementById('category-modal');
   const closeModal = document.querySelector('.close-modal');
   const cancelBtn = document.getElementById('cancel-category-btn');
-  const addCategoryBtn = document.getElementById('add-category-btn');
+  const addCategoryBtn = document.getElementById('add-btn');
   const messageContainer = document.getElementById('message-container');
   const categorySearchInput = document.getElementById('category-search');
 

@@ -12,14 +12,7 @@ export function loadGamesFromAPI() {
       return response.json();
     })
     .then(data => {
-      games = data.map(item => new Game(
-        parseInt(item.id),
-        item.name,
-        item.image,
-        item.description,
-        parseFloat(item.price),
-        item.category
-      ));
+      games = data.map(item => new Game(item));
     })
     .catch(error => {
       console.error('Erro ao carregar os jogos:', error);

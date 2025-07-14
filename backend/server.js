@@ -3,14 +3,20 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { PrismaClient } = require('@prisma/client');
-
+const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
 const app = express();
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3000;
 
 // Configurações de middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://127.0.0.1:5500', // coloque exatamente o endereço do seu frontend
+  credentials: true
+}));
+
 app.use(express.json());
+app.use(cookieParser());
 
 // Configuração do multer para armazenar arquivos em memória
 const storage = multer.memoryStorage();
@@ -500,6 +506,106 @@ app.delete('/images/:id', async (req, res) => {
 });
 
 // ==============================================
+// Rotas para Users
+// ==============================================
+
+app.post('/auth/register', async (req, res) => {
+  const { email, nickname, password, user_status } = req.body;
+
+  try {
+    const existingUser = await prisma.users.findUnique({ where: { email } });
+    if (existingUser) return res.status(400).json({ error: 'Email já registrado.' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const statusId = user_status ?? 2; // Se não vier nada, usa 2 como padrão
+
+    const newUser = await prisma.users.create({
+      data: {
+        email,
+        nickname,
+        password: hashedPassword,
+        user_status: statusId
+      }
+    });
+
+    res.status(201).json({ message: 'Usuário registrado com sucesso!', userId: newUser.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao registrar usuário.' });
+  }
+});
+
+
+app.post('/auth/login', async (req, res) => {
+  const { user, password } = req.body;
+  if (!user || !password) {
+    return res.status(400).json({ error: 'Preencha todos os campos.' });
+  }
+
+  try {
+    const userData = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { email: user },
+          { nickname: user }
+        ]
+      }
+    });
+
+    if (!userData) {
+      return res.status(401).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const senhaCorreta = bcrypt.compareSync(password, userData.password);
+
+    if (!senhaCorreta) {
+      return res.status(401).json({ error: 'Senha incorreta.' });
+    }
+
+    res.cookie('userId', userData.id, { httpOnly: true, sameSite: 'lax' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+});
+
+app.post('/auth/logout', (req, res) => {
+  res.clearCookie('userId');
+  res.json({ message: 'Logout realizado com sucesso.' });
+});
+
+// Checar senha do usuário logado
+app.post('/auth/check-password', verificarUsuarioLogado, async (req, res) => {
+  const { password } = req.body;
+  const user = await prisma.users.findUnique({ where: { id: req.userId } });
+  const bcrypt = require('bcryptjs');
+  if (user && bcrypt.compareSync(password, user.password)) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ error: 'Senha incorreta' });
+  }
+});
+
+// Excluir conta do usuário logado
+app.delete('/auth/delete-account', verificarUsuarioLogado, async (req, res) => {
+  await prisma.users.delete({ where: { id: req.userId } });
+  res.clearCookie('userId');
+  res.json({ ok: true });
+});
+
+app.get('/auth/me', verificarUsuarioLogado, async (req, res) => {
+  const user = await prisma.users.findUnique({
+    where: { id: req.userId },
+    select: { email: true, nickname: true }
+  });
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  res.json(user);
+});
+
+// ==============================================
 // Funções auxiliares
 // ==============================================
 
@@ -539,6 +645,16 @@ function handleError(res, error, action, jsonResponse = true) {
     res.status(500).send(errorMessage);
   }
 }
+
+function verificarUsuarioLogado(req, res, next) {
+  const userId = req.cookies.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Usuário não autenticado.' });
+  }
+  req.userId = parseInt(userId); // transforma string em número
+  next();
+}
+
 
 // Inicia o servidor
 app.listen(port, () => {

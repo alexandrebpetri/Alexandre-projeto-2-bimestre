@@ -138,7 +138,8 @@ main {
 }
 
 .game-card img {
-  max-width: 100%;
+  width: 200px;
+  height: 275px;
   border-radius: 5px;
 }
 
@@ -241,4 +242,64 @@ button:hover {
   margin: 8px auto;
   width: 100%;
   max-width: 400px;
+}
+
+/* Card do usuário */
+#user-card-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#user-card {
+  background: #232323;
+  color: #fff;
+  padding: 2rem 2.5rem;
+  border-radius: 12px;
+  min-width: 320px;
+  position: relative;
+  box-shadow: 0 2px 16px #000a;
+  text-align: center;
+}
+#close-user-card {
+  position: absolute;
+  top: 12px; right: 18px;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+#user-card-actions button,
+#delete-confirm-fields button,
+#delete-final-warning button {
+  margin: 0.5rem 0.5rem 0 0.5rem;
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #6c6b34;
+  color: #232323;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#user-card-actions button:hover,
+#delete-confirm-fields button:hover,
+#delete-final-warning button:hover {
+  background: #ffe082;
+}
+#delete-confirm-fields input {
+  display: block;
+  width: 90%;
+  margin: 0.5rem auto;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: none;
+  background: #292929;
+  color: #fff;
+}
+.auth-error {
+  color: #ff5252;
+  font-size: 0.95rem;
+  min-height: 1.2em;
 }

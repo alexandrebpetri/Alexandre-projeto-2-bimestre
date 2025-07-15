@@ -9,12 +9,17 @@ const app = express();
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3000;
 
+const { gerarToken, verificarToken } = require('./jwt');
+
 // Configurações de middleware
 app.use(cors({
-  origin: 'http://127.0.0.1:5500', // coloque exatamente o endereço do seu frontend
+  origin: [
+    'http://127.0.0.1:5500',
+    'http://localhost:5500',
+    'https://alexandrebpetri.github.io' // troque pelo seu domínio do GitHub Pages
+  ],
   credentials: true
 }));
-
 app.use(express.json());
 app.use(cookieParser());
 
@@ -564,7 +569,14 @@ app.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Senha incorreta.' });
     }
 
-    res.cookie('userId', userData.id, { httpOnly: true, sameSite: 'lax' });
+    // Gerar token JWT corretamente
+    const token = gerarToken({ id: userData.id, email: userData.email });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production' ? true : false
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('Erro no login:', err);
@@ -646,13 +658,19 @@ function handleError(res, error, action, jsonResponse = true) {
   }
 }
 
+
 function verificarUsuarioLogado(req, res, next) {
-  const userId = req.cookies.userId;
-  if (!userId) {
+  const token = req.cookies.token;
+  if (!token) {
     return res.status(401).json({ error: 'Usuário não autenticado.' });
   }
-  req.userId = parseInt(userId); // transforma string em número
-  next();
+  try {
+    const payload = verificarToken(token);
+    req.userId = payload.id;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido.' });
+  }
 }
 
 

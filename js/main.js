@@ -46,7 +46,10 @@ document.getElementById('user').onclick = async function() {
   overlay.style.display = 'flex';
 
   // Busca dados do usuário logado
-  const res = await fetch('http://localhost:3000/auth/me', { credentials: 'include' });
+  const res = await fetch('http://localhost:3000/auth/me', {
+  method: 'GET',
+  credentials: 'include'
+});
   if (res.ok) {
     const user = await res.json();
     document.getElementById('user-email').textContent = user.email;

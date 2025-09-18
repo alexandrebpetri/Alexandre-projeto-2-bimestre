@@ -11,21 +11,227 @@ const port = process.env.PORT || 3000;
 
 const { gerarToken, verificarToken } = require('./jwt');
 
-// Configurações de middleware
-app.use(cors({
-  origin: [
+app.use((req, res, next) => {
+  const allowedOrigins = [
     'http://127.0.0.1:5500',
     'http://localhost:5500',
-    'https://alexandrebpetri.github.io' // troque pelo seu domínio do GitHub Pages
-  ],
-  credentials: true
-}));
+    'http://127.0.0.1:5501',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+
 app.use(express.json());
 app.use(cookieParser());
 
 // Configuração do multer para armazenar arquivos em memória
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+// ==============================================
+// Rotas de Usuário e Admin (Padrão /api)
+// ==============================================
+
+// REGISTRO
+app.post('/auth/register', async (req, res) => {
+  const { email, nickname, password, confirmPassword, adminCode } = req.body;
+
+  if (!email || !nickname || !password || !confirmPassword)
+    return res.status(400).json({ erro: 'Campos obrigatórios' });
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return res.status(400).json({ erro: 'Email inválido' });
+
+  if (password !== confirmPassword)
+    return res.status(400).json({ erro: 'Senhas diferentes' });
+
+  if (password.length < 6)
+    return res.status(400).json({ erro: 'Senha precisa ter ao menos 6 caracteres' });
+
+  try {
+    const existingUser = await prisma.users.findFirst({
+      where: { OR: [{ email }, { nickname }] }
+    });
+    if (existingUser)
+      return res.status(400).json({ erro: 'Email ou nickname já cadastrado' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // user_status: 1 = admin, 2 = comum
+    const isAdmin = adminCode === 'CODIGO_SECRETO_ADMIN';
+    const statusId = isAdmin ? 1 : 2;
+
+    const novoUsuario = await prisma.user.create({
+      data: {
+        email,
+        nickname,
+        password: hashedPassword,
+        user_status: statusId
+      }
+    });
+
+    // Gere o token JWT
+    const token = gerarToken({ id: novoUsuario.id });
+
+    // Envie o cookie JWT
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false, // true em produção
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
+    });
+
+    res.json({
+      authenticated: true,
+      user: {
+        id: novoUsuario.id,
+        email: novoUsuario.email,
+        nickname: novoUsuario.nickname
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: 'Erro interno no registro' });
+  }
+});
+
+// LOGIN
+app.post('/auth/login', async (req, res) => {
+  const { user, password } = req.body;
+  if (!user || !password)
+    return res.status(400).json({ erro: 'Email/nickname e senha obrigatórios' });
+
+  try {
+    const userData = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { email: user },
+          { nickname: user }
+        ]
+      }
+    });
+
+    if (!userData)
+      return res.status(400).json({ erro: 'Credenciais inválidas' });
+
+    const senhaCorreta = await bcrypt.compare(password, userData.password);
+    if (!senhaCorreta)
+      return res.status(400).json({ erro: 'Credenciais inválidas' });
+
+    const isAdmin = userData.user_status === 1;
+
+    const token = gerarToken({ id: userData.id, email: userData.email, isAdmin });
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production' ? true : false
+    });
+
+    // Adicione os dados do usuário no retorno!
+    res.json({
+      sucesso: true,
+      mensagem: 'Login bem-sucedido',
+      isAdmin,
+      user: {
+        id: userData.id,
+        email: userData.email,
+        nickname: userData.nickname,
+        user_status: userData.user_status
+      }
+    });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    res.status(500).json({ erro: 'Erro interno no servidor.' });
+  }
+});
+
+// LOGOUT
+app.get('/auth/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production' ? true : false,
+    path: '/',
+  });
+  res.cookie('token', '', {
+    httpOnly: true,
+    expires: new Date(0),
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production' ? true : false,
+    path: '/',
+  });
+  res.json({ sucesso: true });
+});
+
+// INFO DO USUÁRIO LOGADO
+app.get('/auth/me', verificarUsuarioLogado, async (req, res) => {
+  const user = await prisma.users.findUnique({
+    where: { id: req.userId },
+    select: { id: true, email: true, nickname: true, user_status: true }
+  });
+  if (!user) return res.json({ authenticated: false });
+  res.json({
+    authenticated: true,
+    id: user.id,
+    email: user.email,
+    nickname: user.nickname,
+    isAdmin: user.user_status === 1
+  });
+});
+
+// Middleware para admin
+async function ensureAdmin(req, res, next) {
+  if (!req.userId) return res.status(401).json({ erro: 'Não autenticado' });
+  const user = await prisma.users.findUnique({ where: { id: req.userId } });
+  if (user && user.user_status === 1) return next();
+  res.status(403).json({ erro: 'Acesso restrito a administradores' });
+}
+
+// PROMOVER USUÁRIO A ADMIN
+app.put('/auth/admin/promote/:id', verificarUsuarioLogado, ensureAdmin, async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ erro: 'Usuário não encontrado' });
+
+  await prisma.users.update({
+    where: { id: userId },
+    data: { user_status: 1 }
+  });
+  res.json({ sucesso: true });
+});
+
+// LISTAR ADMINS
+app.get('/auth/admin/list', verificarUsuarioLogado, ensureAdmin, async (req, res) => {
+  const admins = await prisma.users.findMany({
+    where: { user_status: 1 },
+    select: { id: true, email: true, nickname: true }
+  });
+  res.json(admins);
+});
+
+// REMOVER ADMIN (rebaixar para usuário comum)
+app.delete('/auth/admin/remove/:id', verificarUsuarioLogado, ensureAdmin, async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ erro: 'Usuário não encontrado' });
+
+  await prisma.users.update({
+    where: { id: userId },
+    data: { user_status: 2 }
+  });
+  res.json({ sucesso: true, mensagem: 'Admin removido com sucesso' });
+});
 
 // ==============================================
 // Rotas Básicas
@@ -364,6 +570,25 @@ app.delete('/games/:gameId/categories/:categoryId', async (req, res) => {
   }
 });
 
+// Adicionar jogo à biblioteca do usuário
+app.post('/api/library', async (req, res) => {
+  const { userId, gameId } = req.body;
+  if (!userId || !gameId) {
+    return res.status(400).json({ error: 'userId e gameId são obrigatórios' });
+  }
+  try {
+    const novaEntrada = await prisma.library.create({
+      data: {
+        user_id: Number(userId),
+        game_id: Number(gameId)
+      }
+    });
+    res.status(201).json(novaEntrada);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao adicionar à biblioteca', details: err.message });
+  }
+});
+
 // ==============================================
 // Rotas para Image
 // ==============================================
@@ -511,113 +736,6 @@ app.delete('/images/:id', async (req, res) => {
 });
 
 // ==============================================
-// Rotas para Users
-// ==============================================
-
-app.post('/auth/register', async (req, res) => {
-  const { email, nickname, password, user_status } = req.body;
-
-  try {
-    const existingUser = await prisma.users.findUnique({ where: { email } });
-    if (existingUser) return res.status(400).json({ error: 'Email já registrado.' });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const statusId = user_status ?? 2; // Se não vier nada, usa 2 como padrão
-
-    const newUser = await prisma.users.create({
-      data: {
-        email,
-        nickname,
-        password: hashedPassword,
-        user_status: statusId
-      }
-    });
-
-    res.status(201).json({ message: 'Usuário registrado com sucesso!', userId: newUser.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao registrar usuário.' });
-  }
-});
-
-
-app.post('/auth/login', async (req, res) => {
-  const { user, password } = req.body;
-  if (!user || !password) {
-    return res.status(400).json({ error: 'Preencha todos os campos.' });
-  }
-
-  try {
-    const userData = await prisma.users.findFirst({
-      where: {
-        OR: [
-          { email: user },
-          { nickname: user }
-        ]
-      }
-    });
-
-    if (!userData) {
-      return res.status(401).json({ error: 'Usuário não encontrado.' });
-    }
-
-    const bcrypt = require('bcryptjs');
-    const senhaCorreta = bcrypt.compareSync(password, userData.password);
-
-    if (!senhaCorreta) {
-      return res.status(401).json({ error: 'Senha incorreta.' });
-    }
-
-    // Gerar token JWT corretamente
-    const token = gerarToken({ id: userData.id, email: userData.email });
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV === 'production' ? true : false
-    });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Erro no login:', err);
-    res.status(500).json({ error: 'Erro interno no servidor.' });
-  }
-});
-
-app.post('/auth/logout', (req, res) => {
-  res.clearCookie('userId');
-  res.json({ message: 'Logout realizado com sucesso.' });
-});
-
-// Checar senha do usuário logado
-app.post('/auth/check-password', verificarUsuarioLogado, async (req, res) => {
-  const { password } = req.body;
-  const user = await prisma.users.findUnique({ where: { id: req.userId } });
-  const bcrypt = require('bcryptjs');
-  if (user && bcrypt.compareSync(password, user.password)) {
-    res.json({ ok: true });
-  } else {
-    res.status(401).json({ error: 'Senha incorreta' });
-  }
-});
-
-// Excluir conta do usuário logado
-app.delete('/auth/delete-account', verificarUsuarioLogado, async (req, res) => {
-  await prisma.users.delete({ where: { id: req.userId } });
-  res.clearCookie('userId');
-  res.json({ ok: true });
-});
-
-app.get('/auth/me', verificarUsuarioLogado, async (req, res) => {
-  const user = await prisma.users.findUnique({
-    where: { id: req.userId },
-    select: { email: true, nickname: true }
-  });
-  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-  res.json(user);
-});
-
-// ==============================================
 // Funções auxiliares
 // ==============================================
 
@@ -658,23 +776,21 @@ function handleError(res, error, action, jsonResponse = true) {
   }
 }
 
-
 function verificarUsuarioLogado(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
-    return res.status(401).json({ error: 'Usuário não autenticado.' });
+    return res.status(401).json({ erro: 'Usuário não autenticado.' });
   }
   try {
     const payload = verificarToken(token);
     req.userId = payload.id;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Token inválido.' });
+    return res.status(401).json({ erro: 'Token inválido.' });
   }
 }
 
-
 // Inicia o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+app.listen(port, '127.0.0.1', () => {
+  console.log(`Servidor rodando em http://127.0.0.1:${port}`);
 });

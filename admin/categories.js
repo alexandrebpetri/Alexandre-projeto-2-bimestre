@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const API_BASE_URL = 'http://localhost:3000';
+  const API_BASE_URL = 'http://127.0.0.1:3000';
 
   // DOM Elements
   const categoriesContainer = document.getElementById('categories-container');

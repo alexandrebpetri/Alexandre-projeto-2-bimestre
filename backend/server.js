@@ -72,7 +72,7 @@ app.post('/auth/register', async (req, res) => {
     const isAdmin = adminCode === 'CODIGO_SECRETO_ADMIN';
     const statusId = isAdmin ? 1 : 2;
 
-    const novoUsuario = await prisma.user.create({
+    const novoUsuario = await prisma.users.create({
       data: {
         email,
         nickname,
@@ -232,6 +232,111 @@ app.delete('/auth/admin/remove/:id', verificarUsuarioLogado, ensureAdmin, async 
   });
   res.json({ sucesso: true, mensagem: 'Admin removido com sucesso' });
 });
+
+// =============================
+// CRUD de Status de Usuários
+// =============================
+
+// 1. Listar todos os usuários
+// Endpoint para listar usuários com nome do status
+app.get('/users', async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      include: {
+        user_status_users_user_statusTouser_status: true, // garante que a relação seja carregada
+      },
+    });
+
+    // Mapear os usuários para retornar um objeto limpo
+    const result = users.map(u => ({
+      id: u.id,
+      email: u.email,
+      nickname: u.nickname,
+      user_status: u.user_status,
+      status_name: u.user_status_users_user_statusTouser_status?.name || 'Sem status'
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Erro ao buscar usuários:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+// Endpoint para listar todos os status disponíveis
+app.get('/user-status', async (req, res) => {
+  try {
+    const statuses = await prisma.user_status.findMany({
+      select: { id: true, name: true }
+    });
+
+    // Retorna sempre um array (mesmo que vazio)
+    res.json(statuses);
+  } catch (error) {
+    console.error('Erro ao buscar status:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+
+// 2. Listar todos os status disponíveis
+app.get('/user-status', async (req, res) => {
+  try {
+    const statuses = await prisma.user_status.findMany({
+      select: { id: true, name: true }
+    });
+    res.json(statuses);
+  } catch (error) {
+    console.error('Erro ao buscar status:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+// 3. Atualizar o status de um usuário (exceto Admin_Supremo id=1)
+app.put('/users/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { user_status } = req.body;
+
+  try {
+    const userId = parseInt(id, 10);
+
+    if (userId === 1) {
+      return res.status(403).json({ error: 'O Admin_Supremo não pode ter o status alterado.' });
+    }
+
+    // Verifica se o usuário existe
+    const existingUser = await prisma.users.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    // Verifica se o status existe
+    const existingStatus = await prisma.user_status.findUnique({ where: { id: user_status } });
+    if (!existingStatus) {
+      return res.status(400).json({ error: 'Status inválido.' });
+    }
+
+    // Atualiza apenas o campo user_status
+    const updated = await prisma.users.update({
+      where: { id: userId },
+      data: { user_status }
+    });
+
+    res.json({
+      message: 'Status atualizado com sucesso!',
+      user: {
+        id: updated.id,
+        email: updated.email,
+        nickname: updated.nickname,
+        user_status: updated.user_status
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar status do usuário:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
 
 // ==============================================
 // Rotas Básicas
@@ -658,18 +763,24 @@ app.post('/upload/:gameId', upload.single('image'), async (req, res) => {
 app.get('/image/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const image = await prisma.image.findUnique({ where: { id } });
-
-    if (!image || !image.data) {
-      return res.status(404).send('Imagem não encontrada');
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
     }
 
-    res.setHeader('Content-Type', 'image/jpeg');
+    const image = await prisma.image.findUnique({ where: { id } });
+    if (!image) {
+      return res.status(404).json({ error: 'Imagem não encontrada' });
+    }
+
+    // Definir headers para exibir a imagem corretamente
+    res.setHeader('Content-Type', 'image/png'); // ou image/jpeg dependendo do upload
     res.send(image.data);
   } catch (error) {
-    handleError(res, error, 'carregar imagem', false);
+    console.error('Erro ao buscar imagem:', error);
+    res.status(500).json({ error: 'Erro interno ao buscar imagem' });
   }
 });
+
 
 app.put('/images/:id/reassign', async (req, res) => {
   try {
